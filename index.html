@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PLN UIP3B SULAWESI // SYSTEM PROTECTION VIRTUAL TOUR</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,400;1,600;1,700&family=Space+Grotesk:wght@300;400;600;700&family=JetBrains+Mono:ital,wght@0,300;0,500;1,300&display=swap" rel="stylesheet">
+
+    <!-- Three.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #030508;
+            --pln-yellow: #fff200;
+            --pln-cyan: #00f0ff;
+            --pln-blue: #00a0e9;
+            --pln-red: #ff2d55;
+            --text-muted: #a0aec0;
+            --panel-bg: rgba(6, 11, 21, 0.85);
+            --glass-border: rgba(0, 240, 255, 0.25);
+            --glow: 0 0 25px rgba(0, 240, 255, 0.2);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--bg-color);
+            color: #ffffff;
+            font-family: 'Space Grotesk', sans-serif;
+        }
+
+        /* THREE.JS CANVAS OVERLAY FOR CINEMATIC ZOOM */
+        #earth-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 15;
+            pointer-events: none;
+            opacity: 1;
+            transition: opacity 0.5s ease-out;
+        }
+
+        /* TARGET LOCK HUD OVERLAY */
+        #target-hud {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.6);
+            width: 280px;
+            height: 280px;
+            z-index: 16;
+            pointer-events: none;
+            opacity: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        #target-hud.active {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        .target-reticle {
+            width: 180px;
+            height: 180px;
+            border: 2px dashed var(--pln-cyan);
+            border-radius: 50%;
+            position: relative;
+            animation: spinReticle 4s linear infinite;
+        }
+
+        @keyframes spinReticle {
+            100% { transform: rotate(360deg); }
+        }
+
+        .target-reticle::before {
+            content: '';
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 14px; height: 14px;
+            background: var(--pln-yellow);
+            border-radius: 50%;
+            box-shadow: 0 0 20px var(--pln-yellow);
+        }
+
+        .target-label {
+            margin-top: 15px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--pln-cyan);
+            letter-spacing: 2px;
+            text-shadow: 0 0 10px var(--pln-cyan);
+            text-align: center;
+            background: rgba(3, 5, 8, 0.85);
+            padding: 8px 14px;
+            border: 1px solid var(--pln-cyan);
+            border-radius: 4px;
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.3);
+        }
+
+        /* DYNAMIC IMAGE BACKGROUND WITH SMOOTH FADE & OVERLAY */
+        .bg-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .bg-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            opacity: 0;
+            transition: opacity 1.2s ease-in-out, transform 8s ease-out;
+            transform: scale(1.04);
+        }
+
+        .bg-image.active {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .bg-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                135deg,
+                rgba(3, 5, 8, 0.65) 0%,
+                rgba(6, 11, 21, 0.40) 50%,
+                rgba(3, 5, 8, 0.70) 100%
+            );
+            z-index: 2;
+        }
+
+        .grid-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+            background-size: 80px 80px;
+            z-index: 3;
+            pointer-events: none;
+        }
+
+        /* INTRO OVERLAY SCREEN */
+        #intro-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 20;
+            background: rgba(3, 5, 8, 0.75);
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.5s ease, visibility 0.5s;
+        }
+
+        .intro-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.8), var(--glow);
+            padding: 50px;
+            text-align: center;
+            max-width: 680px;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 28px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .intro-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--pln-yellow), var(--pln-cyan), transparent);
+        }
+
+        .pln-logo-svg {
+            width: 64px;
+            height: 78px;
+            filter: drop-shadow(0 0 12px rgba(255, 242, 0, 0.6));
+        }
+
+        .intro-heading {
+            font-family: 'Playfair Display', serif;
+            font-style: italic;
+            font-size: 2.8rem;
+            font-weight: 400;
+            color: #ffffff;
+            line-height: 1.1;
+        }
+
+        .intro-heading span {
+            font-family: 'Space Grotesk', sans-serif;
+            font-style: normal;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            background: linear-gradient(90deg, var(--pln-yellow), #ffffff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: block;
+            font-size: 1.6rem;
+            margin-top: 5px;
+        }
+
+        .btn-start {
+            background: linear-gradient(135deg, var(--pln-yellow) 0%, #ffd700 100%);
+            border: none;
+            color: #030508;
+            padding: 16px 40px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            cursor: pointer;
+            border-radius: 30px;
+            box-shadow: 0 0 25px rgba(255, 242, 0, 0.4);
+            transition: all 0.3s ease;
+        }
+
+        .btn-start:hover {
+            transform: translateY(-2px) scale(1.03);
+            background: linear-gradient(135deg, var(--pln-cyan) 0%, var(--pln-blue) 100%);
+            color: #ffffff;
+            box-shadow: 0 0 35px rgba(0, 240, 255, 0.6);
+        }
+
+        /* MAIN HUD LAYOUT */
+        .hud-grid {
+            position: relative;
+            z-index: 5;
+            width: 100%;
+            height: 100%;
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            padding: 30px 40px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 1s ease;
+        }
+
+        .hud-grid * {
+            pointer-events: auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            width: 100%;
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .brand-text h1 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: #ffffff;
+            text-transform: uppercase;
+        }
+
+        .brand-text p {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .header-center-info {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-align: center;
+            line-height: 1.6;
+        }
+
+        .header-center-info a {
+            color: var(--pln-cyan);
+            text-decoration: none;
+            border-bottom: 1px rgba(0,240,255,0.3) solid;
+        }
+
+        .header-right-meta {
+            text-align: right;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        main {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            align-items: center;
+            height: 100%;
+            width: 100%;
+        }
+
+        .hero-title-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .hero-title-script {
+            font-family: 'Playfair Display', serif;
+            font-style: italic;
+            font-size: clamp(3rem, 6vw, 6.5rem);
+            font-weight: 400;
+            color: #ffffff;
+            line-height: 0.85;
+            letter-spacing: -1px;
+            text-shadow: 0 10px 30px rgba(0,0,0,0.9);
+        }
+
+        .hero-title-main {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: clamp(3.5rem, 7.5vw, 8rem);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: -2px;
+            line-height: 0.9;
+            background: linear-gradient(180deg, #ffffff 0%, #a0aec0 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 15px 40px rgba(0,0,0,0.9);
+        }
+
+        .hero-info-panel {
+            justify-self: end;
+            max-width: 440px;
+            background: var(--panel-bg);
+            border: 1px solid var(--glass-border);
+            backdrop-filter: blur(20px);
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.7);
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            position: relative;
+        }
+
+        .hero-info-panel::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            right: 20px;
+            width: 80px;
+            height: 2px;
+            background: var(--pln-cyan);
+            box-shadow: 0 0 10px var(--pln-cyan);
+        }
+
+        .info-category-tag {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem;
+            color: var(--pln-yellow);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .info-category-tag::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            background-color: var(--pln-yellow);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--pln-yellow);
+        }
+
+        .info-body-text {
+            font-size: 0.92rem;
+            line-height: 1.7;
+            color: #e2e8f0;
+            font-weight: 300;
+        }
+
+        .info-body-text strong {
+            color: #ffffff;
+            font-weight: 600;
+        }
+
+        .formula-box {
+            background: rgba(0, 0, 0, 0.5);
+            border-left: 2px solid var(--pln-cyan);
+            padding: 10px 14px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82rem;
+            color: var(--pln-cyan);
+            border-radius: 0 4px 4px 0;
+        }
+
+        footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            width: 100%;
+        }
+
+        .footer-left {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        .footer-left .time-val {
+            color: #ffffff;
+            font-weight: 500;
+        }
+
+        .module-nav-container {
+            display: flex;
+            gap: 8px;
+            background: rgba(6, 11, 21, 0.85);
+            padding: 6px;
+            border: 1px solid var(--glass-border);
+            border-radius: 40px;
+            backdrop-filter: blur(15px);
+        }
+
+        .mod-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 8px 18px;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.78rem;
+            font-weight: 600;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            letter-spacing: 0.5px;
+        }
+
+        .mod-btn:hover {
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .mod-btn.active {
+            background: #ffffff;
+            color: #030508;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.4);
+        }
+
+        .footer-right {
+            text-align: right;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem;
+            color: var(--text-muted);
+        }
+
+        .audio-toggle-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #fff;
+            padding: 8px 14px;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            font-family: 'JetBrains Mono', monospace;
+            cursor: pointer;
+            margin-top: 4px;
+            transition: 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .audio-toggle-btn:hover {
+            border-color: var(--pln-cyan);
+            color: var(--pln-cyan);
+        }
+
+        @media (max-width: 1024px) {
+            .hud-grid { padding: 20px; }
+            main { grid-template-columns: 1fr; gap: 20px; }
+            .hero-info-panel { justify-self: start; max-width: 100%; }
+            .module-nav-container { flex-wrap: wrap; border-radius: 12px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- THREE.JS 3D EARTH CANVAS -->
+    <canvas id="earth-canvas"></canvas>
+
+    <!-- TARGET LOCK HUD -->
+    <div id="target-hud">
+        <div class="target-reticle"></div>
+        <div class="target-label">
+            TARGET LOCKED: UIP3B SULAWESI<br>
+            <span style="font-size: 0.65rem; color: var(--pln-yellow);">LAT: -5.1343° S | LON: 119.4619° E</span>
+        </div>
+    </div>
+
+    <!-- DYNAMIC BACKGROUND CONTAINERS -->
+    <div class="bg-container">
+        <div id="bg-1" class="bg-image active" style="background-image: url('https://images.unsplash.com/photo-1573164713988-8665fc963095?auto=format&fit=crop&w=1920&q=80');"></div>
+        <div id="bg-2" class="bg-image" style="background-image: url('https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?auto=format&fit=crop&w=1920&q=80');"></div>
+    </div>
+    <div class="bg-overlay"></div>
+    <div class="grid-overlay"></div>
+
+    <!-- INTRO SPLASH SCREEN -->
+    <div id="intro-overlay">
+        <div class="intro-card">
+            <svg class="pln-logo-svg" viewBox="0 0 100 130">
+                <rect x="5" y="5" width="90" height="90" fill="#fff200" rx="4" />
+                <path d="M 20,40 Q 50,30 80,40 M 20,55 Q 50,45 80,55 M 20,70 Q 50,60 80,70" fill="none" stroke="#00a0e9" stroke-width="5" stroke-linecap="round" />
+                <polygon points="58,10 32,58 52,58 40,95 70,48 48,48" fill="#e60012" />
+                <text x="50" y="120" font-family="'Space Grotesk', sans-serif" font-weight="900" font-size="24" fill="#00a0e9" text-anchor="middle">PLN</text>
+            </svg>
+            <div>
+                <div class="intro-heading">
+                    System Protection
+                    <span>UIP3B Sulawesi</span>
+                </div>
+                <p style="font-size: 0.88rem; color: var(--text-muted); margin-top: 12px; line-height: 1.6; font-weight: 300;">
+                    Interactive Sub-station Transmission & Protection Virtual Dashboard.<br>
+                    <span style="font-size: 0.75rem; color: var(--pln-cyan);">Jl. Urip Sumoharjo No.Km7, Tello Baru, Makassar</span>
+                </p>
+            </div>
+            <button class="btn-start" onclick="startEarthZoomAnimation()">Initialize Dashboard</button>
+        </div>
+    </div>
+
+    <!-- MAIN HUD UI -->
+    <div class="hud-grid" id="main-hud">
+        <header>
+            <div class="header-brand">
+                <svg class="pln-logo-svg" viewBox="0 0 100 130" style="width: 36px; height: 44px;">
+                    <rect x="5" y="5" width="90" height="90" fill="#fff200" rx="4" />
+                    <path d="M 20,40 Q 50,30 80,40 M 20,55 Q 50,45 80,55 M 20,70 Q 50,60 80,70" fill="none" stroke="#00a0e9" stroke-width="5" stroke-linecap="round" />
+                    <polygon points="58,10 32,58 52,58 40,95 70,48 48,48" fill="#e60012" />
+                    <text x="50" y="120" font-family="'Space Grotesk', sans-serif" font-weight="900" font-size="24" fill="#00a0e9" text-anchor="middle">PLN</text>
+                </svg>
+                <div class="brand-text">
+                    <h1>PLN UIP3B SULAWESI</h1>
+                    <p>System Protection Sub-Division</p>
+                </div>
+            </div>
+
+            <div class="header-center-info">
+                Available for System Diagnostics:<br>
+                <a href="mailto:dispatcher@uip3b-sulawesi.pln.co.id" id="speaker-role-link">dispatcher@uip3b-sulawesi.pln.co.id</a>
+            </div>
+
+            <div class="header-right-meta">
+                <div>150kV Grid Protection : <span style="color: #00ff88;">ONLINE</span></div>
+                <div>Sub-station Relay Racks : <span style="color: var(--pln-cyan);">ACTIVE</span></div>
+            </div>
+        </header>
+
+        <main>
+            <div class="hero-title-container">
+                <div class="hero-title-script" id="hero-script-text">Protection</div>
+                <div class="hero-title-main" id="hero-main-text">SYSTEM.</div>
+            </div>
+
+            <div class="hero-info-panel">
+                <div class="info-category-tag" id="mod-tag">MODULE 01 // OVERVIEW</div>
+                <div class="info-body-text" id="mod-body">
+                    Loading module description...
+                </div>
+                <div id="formula-container" style="display: none;">
+                    <div class="formula-box" id="formula-text">Z_measured = V_phase / I_phase</div>
+                </div>
+                <button class="audio-toggle-btn" onclick="toggleVoiceNarration()">
+                    🔊 <span id="voice-btn-label">Replay Narration</span>
+                </button>
+            </div>
+        </main>
+
+        <footer>
+            <div class="footer-left">
+                Local Time (Makassar / WITA)<br>
+                <span class="time-val" id="clock-display">WITA 00:00:00</span>
+            </div>
+
+            <div class="module-nav-container">
+                <button class="mod-btn active" onclick="switchModule('uip3b', this)">Overview</button>
+                <button class="mod-btn" onclick="switchModule('distance', this)">Distance Relay</button>
+                <button class="mod-btn" onclick="switchModule('lcd', this)">Line Differential</button>
+                <button class="mod-btn" onclick="switchModule('ocr_gfr', this)">OCR & GFR</button>
+                <button class="mod-btn" onclick="switchModule('trafo_diff', this)">Trafo Protection</button>
+                <button class="mod-btn" onclick="switchModule('dc_system', this)">DC Power System</button>
+            </div>
+
+            <div class="footer-right">
+                © 2026 PLN UIP3B SULAWESI<br>
+                <span style="color: var(--text-muted);">ALL SYSTEMS OPTIMAL</span>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        /* =========================================================
+           1. THREE.JS HIGH-DEFINITION 3D SPACE & EARTH ENGINE
+           ========================================================= */
+        let scene, camera, renderer, earthGroup, earthMesh, cloudsMesh, atmosphereMesh, starField;
+        let isZooming = false;
+        let zoomStartTime = 0;
+        const ZOOM_DURATION = 1800; // 1.8 Seconds Fast Hyperspeed Zoom
+
+        // Target: PLN UIP3B Sulawesi, Makassar (-5.1343, 119.4619)
+        const targetLat = -5.1343;
+        const targetLon = 119.4619;
+
+        function initEarth3D() {
+            const canvas = document.getElementById('earth-canvas');
+            scene = new THREE.Scene();
+
+            camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 2000);
+            camera.position.set(0, 0, 350); // Outer Space Initial Position
+
+            renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+            // Lighting Setup
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+            scene.add(ambientLight);
+
+            const sunLight = new THREE.DirectionalLight(0xffffff, 1.5);
+            sunLight.position.set(100, 50, 150);
+            scene.add(sunLight);
+
+            earthGroup = new THREE.Group();
+            scene.add(earthGroup);
+
+            const textureLoader = new THREE.TextureLoader();
+
+            // HD 4K Earth Map
+            const earthGeo = new THREE.SphereGeometry(50, 64, 64);
+            const earthTex = textureLoader.load('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_atmos_2048.jpg');
+            const earthSpec = textureLoader.load('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_specular_2048.jpg');
+            const earthMat = new THREE.MeshPhongMaterial({
+                map: earthTex,
+                specularMap: earthSpec,
+                specular: new THREE.Color(0x333333),
+                shininess: 25
+            });
+            earthMesh = new THREE.Mesh(earthGeo, earthMat);
+            earthGroup.add(earthMesh);
+
+            // Separate Cloud Layer for Realistic Depth
+            const cloudsGeo = new THREE.SphereGeometry(50.6, 64, 64);
+            const cloudsTex = textureLoader.load('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_clouds_1024.png');
+            const cloudsMat = new THREE.MeshPhongMaterial({
+                map: cloudsTex,
+                transparent: true,
+                opacity: 0.45,
+                blending: THREE.AdditiveBlending
+            });
+            cloudsMesh = new THREE.Mesh(cloudsGeo, cloudsMat);
+            earthGroup.add(cloudsMesh);
+
+            // Atmosphere Glow
+            const atmosGeo = new THREE.SphereGeometry(53, 64, 64);
+            const atmosMat = new THREE.MeshBasicMaterial({
+                color: 0x00f0ff,
+                transparent: true,
+                opacity: 0.15,
+                side: THREE.BackSide
+            });
+            atmosphereMesh = new THREE.Mesh(atmosGeo, atmosMat);
+            earthGroup.add(atmosphereMesh);
+
+            // High Density HD Space Starfield
+            const starGeo = new THREE.BufferGeometry();
+            const starCount = 3000;
+            const starPos = new Float32Array(starCount * 3);
+            for(let i=0; i<starCount*3; i++) {
+                starPos[i] = (Math.random() - 0.5) * 1200;
+            }
+            starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+            const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 1.2, transparent: true, opacity: 0.8 });
+            starField = new THREE.Points(starGeo, starMat);
+            scene.add(starField);
+
+            // Set Initial Earth Angle to show Asia Pacific
+            earthGroup.rotation.y = 2.2;
+            earthGroup.rotation.x = 0.1;
+
+            window.addEventListener('resize', onWindowResize);
+            animateEarth();
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animateEarth(timestamp) {
+            requestAnimationFrame(animateEarth);
+
+            if (!isZooming) {
+                // Outer space idle rotation
+                earthGroup.rotation.y += 0.001;
+                cloudsMesh.rotation.y += 0.0013;
+            } else {
+                const elapsed = timestamp - zoomStartTime;
+                let progress = elapsed / ZOOM_DURATION;
+                if (progress > 1) progress = 1;
+
+                // Fast Exponential Ease-In Zoom Function
+                const easeProgress = Math.pow(progress, 3);
+
+                // Exact Target Rotations for Makassar
+                const targetRotY = - (targetLon * Math.PI / 180) - Math.PI / 2;
+                const targetRotX = (targetLat * Math.PI / 180);
+
+                earthGroup.rotation.y = THREE.MathUtils.lerp(earthGroup.rotation.y, targetRotY, 0.12);
+                earthGroup.rotation.x = THREE.MathUtils.lerp(earthGroup.rotation.x, targetRotX, 0.12);
+
+                // Rapid Camera Zoom from 350 to 56
+                camera.position.z = THREE.MathUtils.lerp(350, 56, easeProgress);
+
+                if (progress >= 0.55) {
+                    document.getElementById('target-hud').classList.add('active');
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        /* =========================================================
+           2. CINEMATIC START TRIGGER (FAST 1.8s ZOOM)
+           ========================================================= */
+        function startEarthZoomAnimation() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            playSynthBeep(880, 0.08);
+
+            // Hide Intro Card Overlay
+            const overlay = document.getElementById('intro-overlay');
+            overlay.style.opacity = '0';
+            setTimeout(() => { overlay.style.visibility = 'hidden'; }, 400);
+
+            // Start Earth Zoom
+            isZooming = true;
+            zoomStartTime = performance.now();
+
+            // Seamless transition to Main HUD right after zoom completes
+            setTimeout(() => {
+                const canvas = document.getElementById('earth-canvas');
+                const hud = document.getElementById('target-hud');
+                
+                canvas.style.opacity = '0';
+                hud.style.opacity = '0';
+
+                setTimeout(() => {
+                    canvas.style.display = 'none';
+                    hud.style.display = 'none';
+                    document.getElementById('main-hud').style.opacity = '1';
+                    switchModule('uip3b', document.querySelector('.mod-btn'));
+                }, 400);
+            }, ZOOM_DURATION);
+        }
+
+        window.addEventListener('load', initEarth3D);
+
+        /* =========================================================
+           3. AUDIO ENGINE & SPEECH SYNTHESIS
+           ========================================================= */
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let englishVoice = null;
+        let isVoiceMuted = false;
+
+        function initVoices() {
+            if ('speechSynthesis' in window) {
+                const updateVoice = () => {
+                    const voices = window.speechSynthesis.getVoices();
+                    englishVoice = voices.find(v => (v.lang.includes('en-US') || v.lang.includes('en-GB')) && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Samantha') || v.name.includes('Daniel') || v.name.includes('Karen'))) 
+                                  || voices.find(v => v.lang.startsWith('en'));
+                };
+                updateVoice();
+                window.speechSynthesis.onvoiceschanged = updateVoice;
+            }
+        }
+        initVoices();
+
+        function playSynthBeep(freq = 520, duration = 0.04) {
+            try {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.015, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch(e){}
+        }
+
+        function speakNaturalEnglish(text) {
+            if ('speechSynthesis' in window && !isVoiceMuted) {
+                window.speechSynthesis.cancel();
+                
+                const utterance = new SpeechSynthesisUtterance(text);
+                if (englishVoice) utterance.voice = englishVoice;
+                
+                utterance.pitch = 1.05;
+                utterance.rate = 0.95;
+                utterance.volume = 1.0;
+                
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        function toggleVoiceNarration() {
+            if ('speechSynthesis' in window) {
+                if (window.speechSynthesis.speaking) {
+                    window.speechSynthesis.cancel();
+                } else if (currentModuleKey) {
+                    speakNaturalEnglish(modules[currentModuleKey].speech);
+                }
+            }
+        }
+
+        /* =========================================================
+           4. REAL-TIME CLOCK UPDATER
+           ========================================================= */
+        function updateClock() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('en-US', { hour12: false, timeZone: 'Asia/Makassar' });
+            document.getElementById('clock-display').innerText = `WITA ${timeStr}`;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        /* =========================================================
+           5. BACKGROUND IMAGE FADE TRANSITION CONTROLLER
+           ========================================================= */
+        let bgToggle = true;
+
+        function setBackgroundImage(imageUrl) {
+            const bg1 = document.getElementById('bg-1');
+            const bg2 = document.getElementById('bg-2');
+
+            const img = new Image();
+            img.src = imageUrl;
+            img.onload = () => {
+                if (bgToggle) {
+                    bg2.style.backgroundImage = `url('${imageUrl}')`;
+                    bg2.classList.add('active');
+                    bg1.classList.remove('active');
+                } else {
+                    bg1.style.backgroundImage = `url('${imageUrl}')`;
+                    bg1.classList.add('active');
+                    bg2.classList.remove('active');
+                }
+                bgToggle = !bgToggle;
+            };
+        }
+
+        /* =========================================================
+           6. MODULE DATA & HIGH-RES SUBSTATION FOTOS
+           ========================================================= */
+        const modules = {
+            uip3b: {
+                tag: "MODULE 01 // OVERVIEW",
+                titleScript: "Protection",
+                titleMain: "OVERVIEW.",
+                body: "<strong>PLN UIP3B Sulawesi</strong> operates and controls the high-voltage 150kV grid network across Sulawesi Island. Division management monitors power transmission stability across regional dispatch offices.",
+                formula: null,
+                speech: "Welcome to PLN UIP3B Sulawesi System Protection virtual dashboard. Operating and guarding the 150kV high voltage power transmission system across Sulawesi.",
+                bgImage: "https://images.unsplash.com/photo-1573164713988-8665fc963095?auto=format&fit=crop&w=1920&q=80"
+            },
+            distance: {
+                tag: "MODULE 02 // MAIN LINE PROTECTION",
+                titleScript: "Distance",
+                titleMain: "RELAY (21).",
+                body: "Primary protective equipment for 150kV transmission lines based on real-time impedance measurements (Z = V / I). Instantly isolates line faults within Zone 1 (80% length) at 0 milliseconds.",
+                formula: "Z_measured = V_phase / I_phase",
+                speech: "Distance Relay acts as the primary protection for high voltage overhead lines, measuring line impedance to isolate faults instantaneously.",
+                bgImage: "https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?auto=format&fit=crop&w=1920&q=80"
+            },
+            lcd: {
+                tag: "MODULE 03 // DIFFERENTIAL PROTECTION",
+                titleScript: "Line Current",
+                titleMain: "DIFFERENTIAL.",
+                body: "Compares and calculates vector current differences between both ends of transmission lines via dedicated fiber optic links. Delivers ultra-high selectivity in fault isolation.",
+                formula: "I_diff = | I_local + I_remote |",
+                speech: "Line Current Differential protection compares current vectors across both substation terminals via high-speed fiber optics.",
+                bgImage: "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1920&q=80"
+            },
+            ocr_gfr: {
+                tag: "MODULE 04 // BACKUP PROTECTION",
+                titleScript: "Overcurrent",
+                titleMain: "OCR & GFR.",
+                body: "Secondary backup protection system. <strong>OCR (51)</strong> detects phase-to-phase overcurrent conditions, while <strong>GFR (51N)</strong> handles single line-to-ground faults.",
+                formula: "I_ground = I_A + I_B + I_C",
+                speech: "Overcurrent and Ground Fault Relays serve as secondary backup protection when main differential schemes are clearing downstream faults.",
+                bgImage: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=1920&q=80"
+            },
+            trafo_diff: {
+                tag: "MODULE 05 // TRANSFORMER GUARD",
+                titleScript: "Transformer",
+                titleMain: "DIFFERENTIAL.",
+                body: "Protects high-capacity 150kV power transformers by comparing primary and secondary currents. Instantly trips circuit breakers upon detecting internal winding short circuits.",
+                formula: "I_diff = | I_primary - I_secondary |",
+                speech: "Transformer Differential relays protect critical power transformer windings against internal insulation breakdowns.",
+                bgImage: "https://images.unsplash.com/photo-1617788138017-80ad40651399?auto=format&fit=crop&w=1920&q=80"
+            },
+            dc_system: {
+                tag: "MODULE 06 // AUXILIARY POWER",
+                titleScript: "DC Power",
+                titleMain: "BATTERY DC.",
+                body: "Vital auxiliary DC power supply in Gardu Induk. <strong>110V DC</strong> powers circuit breaker trip coils and protection relays; <strong>48V DC</strong> feeds teleprotection, SCADA, and communications.",
+                formula: null,
+                speech: "Substation DC power supply systems maintain uninterrupted power to circuit breaker tripping coils and digital protection relays.",
+                bgImage: "https://images.unsplash.com/photo-1558441719-677242220450?auto=format&fit=crop&w=1920&q=80"
+            }
+        };
+
+        let currentModuleKey = 'uip3b';
+
+        function switchModule(key, btnElem) {
+            playSynthBeep(640, 0.05);
+            currentModuleKey = key;
+
+            document.querySelectorAll('.mod-btn').forEach(b => b.classList.remove('active'));
+            if (btnElem) btnElem.classList.add('active');
+
+            const mod = modules[key];
+            setBackgroundImage(mod.bgImage);
+
+            document.getElementById('mod-tag').innerText = mod.tag;
+            document.getElementById('hero-script-text').innerText = mod.titleScript;
+            document.getElementById('hero-main-text').innerText = mod.titleMain;
+            document.getElementById('mod-body').innerHTML = mod.body;
+
+            const formulaContainer = document.getElementById('formula-container');
+            if (mod.formula) {
+                formulaContainer.style.display = 'block';
+                document.getElementById('formula-text').innerText = mod.formula;
+            } else {
+                formulaContainer.style.display = 'none';
+            }
+
+            speakNaturalEnglish(mod.speech);
+        }
+    </script>
+</body>
+</html>
