@@ -1,1 +1,1 @@
-# UIP3B-Sulawesi-Proteksi-
+# UIP3B-Sulawesi-Proteksi
